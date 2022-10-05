@@ -11,6 +11,7 @@ local function query_and_cache(opts)
     return client.server_capabilities.documentFormattingProvider and (not opts.filter or opts.filter(client))
   end, clients)
   if #clients == 0 then
+    cache[opts.bufnr] = false
     return
   end
 
@@ -32,6 +33,10 @@ local function query_and_cache(opts)
     end, opts.bufnr)
   end
   do_query(1)
+end
+
+local function clear(bufnr)
+  cache[bufnr] = nil
 end
 
 local function normalize_opts(opts)
@@ -62,9 +67,17 @@ end
 
 function M.setup()
   local augroup = vim.api.nvim_create_augroup("lsp-query-format", {})
+  vim.api.nvim_create_autocmd("LspAttach", {
+    group = augroup,
+    callback = function(args)
+      clear(args.buf)
+    end,
+  })
   vim.api.nvim_create_autocmd("BufWritePost", {
     group = augroup,
-    callback = M.update,
+    callback = function(args)
+      M.update({ bufnr = args.buf })
+    end,
   })
   -- vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold", "InsertLeave" }, {
   --   group = augroup,
