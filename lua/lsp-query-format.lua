@@ -1,7 +1,11 @@
 local M = {}
 
+--- Store formattable status or request id for each buffer.
+---@type table<number, boolean|number|nil>
 local cache = {}
 
+--- Query formattable status and stores to `cache` its result.
+---@param opts table
 local function query_and_cache(opts)
   if type(cache[opts.bufnr]) == "number" then
     -- request is being processed
@@ -48,10 +52,15 @@ local function query_and_cache(opts)
   do_query(1)
 end
 
+--- Clear formattable status of the specified buffer.
+---@param bufnr number
 local function clear(bufnr)
   cache[bufnr] = nil
 end
 
+--- Normalize options of APIs.
+---@param opts table|nil
+---@return table
 local function normalize_opts(opts)
   opts = opts or {}
   if not opts.bufnr then
@@ -60,10 +69,49 @@ local function normalize_opts(opts)
   return opts
 end
 
+--- Update formattable status. This function does not block.
+---@param opts table|nil
+---     - formatting_options (table|nil):
+---         Can be used to specify FormattingOptions. Some unspecified options will be
+---         automatically derived from the current Neovim options.
+---         See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#formattingOptions
+---     - bufnr (number|nil):
+---         A buffer number to update status, defaults to the current buffer (0).
+---     - filter (function|nil):
+---         Predicate used to filter clients. Receives a client as argument and must return a
+---         boolean. Clients matching the predicate are included. Example:
+---
+---         <pre>
+---         -- Never request typescript-language-server for updating
+---         require("lsp-query-format").update {
+---           filter = function(client) return client.name ~= "tsserver" end
+---         }
+---         </pre>
 function M.update(opts)
   query_and_cache(normalize_opts(opts))
 end
 
+--- Query formattable status. Returns `true` or `false` if status is available.
+---@param opts table|nil
+---     - formatting_options (table|nil):
+---         Can be used to specify FormattingOptions. Some unspecified options will be
+---         automatically derived from the current Neovim options.
+---         See https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#formattingOptions
+---     - timeout_ms (integer|nil, default 10):
+---         Time in milliseconds to block for a result.
+---     - bufnr (number|nil):
+---         A buffer number to query status, defaults to the current buffer (0).
+---     - filter (function|nil):
+---         Predicate used to filter clients. Receives a client as argument and must return a
+---         boolean. Clients matching the predicate are included. Example:
+---
+---         <pre>
+---         -- Never request typescript-language-server for querying
+---         local formattable = require("lsp-query-format").query {
+---           filter = function(client) return client.name ~= "tsserver" end
+---         }
+---         </pre>
+---@return boolean|nil
 function M.query(opts)
   opts = normalize_opts(opts)
 
@@ -87,6 +135,7 @@ function M.query(opts)
   return result
 end
 
+--- Setup lsp-query-format.
 function M.setup()
   local augroup = vim.api.nvim_create_augroup("lsp-query-format", {})
   vim.api.nvim_create_autocmd("LspAttach", {
