@@ -3,6 +3,12 @@ local M = {}
 local cache = {}
 
 local function query_and_cache(opts)
+  if type(cache[opts.bufnr]) == "number" then
+    -- request is being processed
+    return
+  end
+  cache[opts.bufnr] = 0
+
   local clients = vim.lsp.get_active_clients({
     bufnr = opts.bufnr,
   })
@@ -19,7 +25,7 @@ local function query_and_cache(opts)
 
   local do_query
   do_query = function(idx)
-    clients[idx].request("textDocument/formatting", params, function(_, result, _, _)
+    _, cache[opts.bufnr] = clients[idx].request("textDocument/formatting", params, function(_, result, _, _)
       if result and #result > 0 then
         cache[opts.bufnr] = true
         return
@@ -54,15 +60,24 @@ end
 function M.query(opts)
   opts = normalize_opts(opts)
 
-  if cache[opts.bufnr] == nil then
-    query_and_cache(opts)
+  local result = cache[opts.bufnr]
+  if type(result) ~= "boolean" then
+    if result == nil then
+      query_and_cache(opts)
+    end
+    result = nil
 
     -- wait a moment for the result
     vim.wait(opts.timeout_ms or 10, function()
-      return cache[opts.bufnr] ~= nil
+      local r = cache[opts.bufnr]
+      if type(r) == "boolean" then
+        result = r
+        return true
+      end
+      return false
     end, 10)
   end
-  return cache[opts.bufnr]
+  return result
 end
 
 function M.setup()
