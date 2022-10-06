@@ -9,6 +9,14 @@ local function query_and_cache(opts)
   end
   cache[opts.bufnr] = 0
 
+  local done = function(value)
+    cache[opts.bufnr] = value
+    vim.b[opts.bufnr].lqf_formattable = value
+    vim.api.nvim_buf_call(opts.bufnr, function()
+      vim.api.nvim_exec_autocmds("User", { pattern = "LqfDone", modeline = false })
+    end)
+  end
+
   local clients = vim.lsp.get_active_clients({
     bufnr = opts.bufnr,
   })
@@ -17,24 +25,23 @@ local function query_and_cache(opts)
     return client.server_capabilities.documentFormattingProvider and (not opts.filter or opts.filter(client))
   end, clients)
   if #clients == 0 then
-    cache[opts.bufnr] = false
+    done(false)
     return
   end
 
   local params = vim.lsp.util.make_formatting_params(opts.formatting_options)
-
   local do_query
   do_query = function(idx)
     _, cache[opts.bufnr] = clients[idx].request("textDocument/formatting", params, function(_, result, _, _)
       if result and #result > 0 then
-        cache[opts.bufnr] = true
+        done(true)
         return
       end
 
       if idx + 1 <= #clients then
         do_query(idx + 1)
       else
-        cache[opts.bufnr] = false
+        done(false)
       end
     end, opts.bufnr)
   end
