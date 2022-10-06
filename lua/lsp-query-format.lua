@@ -1,3 +1,7 @@
+local default_config = {
+  update_events = { "BufWritePost" },
+}
+
 local M = {}
 
 --- Store formattable status or request id for each buffer.
@@ -136,7 +140,9 @@ function M.query(opts)
 end
 
 --- Setup lsp-query-format.
-function M.setup()
+function M.setup(opts)
+  opts = vim.tbl_deep_extend("force", opts or {}, default_config)
+
   local augroup = vim.api.nvim_create_augroup("lsp-query-format", {})
   vim.api.nvim_create_autocmd("LspAttach", {
     group = augroup,
@@ -144,7 +150,7 @@ function M.setup()
       clear(args.buf)
     end,
   })
-  vim.api.nvim_create_autocmd("BufWritePost", {
+  vim.api.nvim_create_autocmd(opts.update_events, {
     group = augroup,
     callback = function(args)
       M.update({ bufnr = args.buf })
