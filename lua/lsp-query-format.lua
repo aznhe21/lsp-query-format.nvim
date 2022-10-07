@@ -156,10 +156,6 @@ function M.setup(opts)
       M.update({ bufnr = args.buf })
     end,
   })
-  -- vim.api.nvim_create_autocmd({ "BufEnter", "CursorHold", "InsertLeave" }, {
-  --   group = augroup,
-  --   callback = vim.schedule_wrap(M.update),
-  -- })
 end
 
 return M
