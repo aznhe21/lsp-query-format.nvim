@@ -8,6 +8,12 @@ local M = {}
 ---@type table<number, boolean|number|nil>
 local cache = {}
 
+--- Clear formattable status of the specified buffer.
+---@param bufnr number
+local function clear(bufnr)
+  cache[bufnr] = nil
+end
+
 --- Query formattable status and stores to `cache` its result.
 ---@param opts table
 local function query_and_cache(opts)
@@ -18,6 +24,11 @@ local function query_and_cache(opts)
   cache[opts.bufnr] = 0
 
   local done = function(value)
+    if not vim.api.nvim_buf_is_loaded(opts.bufnr) then
+      clear(opts.bufnr)
+      return
+    end
+
     cache[opts.bufnr] = value
     vim.b[opts.bufnr].lqf_formattable = value
     vim.api.nvim_buf_call(opts.bufnr, function()
@@ -54,12 +65,6 @@ local function query_and_cache(opts)
     end, opts.bufnr)
   end
   do_query(1)
-end
-
---- Clear formattable status of the specified buffer.
----@param bufnr number
-local function clear(bufnr)
-  cache[bufnr] = nil
 end
 
 --- Normalize options of APIs.
